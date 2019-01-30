@@ -7,12 +7,16 @@
 //
 
 import UIKit
+import SwiftyJSON
+import Alamofire
 
 class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDelegate {
     
     let baseURL = "https://apiv2.bitcoinaverage.com/indices/global/ticker/BTC"
     let currencyArray = ["AUD", "BRL","CAD","CNY","EUR","GBP","HKD","IDR","ILS","INR","JPY","MXN","NOK","NZD","PLN","RON","RUB","SEK","SGD","USD","ZAR"]
+    let currencySymbolArray = ["$", "R$", "$", "¥", "€", "£", "$", "Rp", "₪", "₹", "¥", "$", "kr", "$", "zł", "lei", "₽", "kr", "$", "$", "R"]
     var finalURL = ""
+    var currencySelected: String = ""
     
     //Pre-setup IBOutlets
     @IBOutlet weak var bitcoinPriceLabel: UILabel!
@@ -42,8 +46,10 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     }
     
     func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        print(row)
-        print(currencyArray[row])
+        finalURL = baseURL + currencyArray[row]
+        currencySelected = currencySymbolArray[row]
+        bitcoinPriceLabel.text = "Processing..."
+        getBitcoinData(url: finalURL)
     }
     
     
@@ -70,6 +76,20 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     //            }
     //
     //    }
+    
+    func getBitcoinData(url: String) {
+        Alamofire.request(url, method: .get).responseJSON { response in
+            if response.result.isSuccess {
+                print("Success! Got Bitcoin data")
+                let bitcoinJSON: JSON = JSON(response.result.value!)
+                
+                self.updateBitcoinData(json: bitcoinJSON)
+            } else {
+                print("Error: \(String(describing: response.result.error))")
+                self.bitcoinPriceLabel.text = "Connection Issues"
+            }
+        }
+    }
     //
     //
     //
@@ -90,10 +110,24 @@ class ViewController: UIViewController, UIPickerViewDataSource, UIPickerViewDele
     //
     //        updateUIWithWeatherData()
     //    }
-    //
+    func updateBitcoinData(json: JSON) {
+        if let result = json["open"]["day"].double {
+            bitcoinPriceLabel.text = "\(currencySelected)\(result.withCommas())"
+        } else {
+            bitcoinPriceLabel.text = "Price Unavailable"
+        }
+    }
     
     
     
     
 }
 
+
+extension Double {
+    func withCommas() -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = NumberFormatter.Style.decimal
+        return numberFormatter.string(from: NSNumber(value:self))!
+    }
+}
